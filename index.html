@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="tetris">
+        <!-- Game -->
+        <div class="game">
+            <canvas id="tetris" width="440" height="600"></canvas>
+        </div>
+    
+        <!-- UI -->
+        <div class="UI">
+            <h1>Tetris</h1>
+
+            <div class="score">
+                <p>Score: </p>
+                <p class="score-value">0</p>
+            </div>
+
+            <div class="nextBlock">
+                <p>Next Block: </p>
+                <p class="next-block-code">1</p>
+            </div>
+
+            <div class="level">
+                <p>Level: </p>
+                <p class="level-value">1</p>
+            </div>
+
+        </div>
+    </main>
+    
+    <script src="tetris.js"></script>
+</body>
+</html>

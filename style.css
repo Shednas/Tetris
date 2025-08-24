@@ -1,0 +1,68 @@
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #222;
+    font-family: 'Press Start 2P', cursive;
+    color: #ffffff;
+}
+
+/* Layout */
+main {
+    display: grid;
+    grid-template-columns: 1.5fr 0.7fr ;
+}
+
+/* Game Canvas */
+canvas {
+    display: block;
+    margin: 60px auto;
+    border: 8px solid #3eb7ca;
+    border-radius: 12px;
+    background: #000000;
+}
+
+/* Controls Panel */
+.UI {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 30px;
+    padding: 20px;
+    background: rgb(32, 32, 32);
+    border-radius: 12px;
+
+}
+
+/* Control Buttons */
+.UI div {
+    background: #000000;
+    padding: 20px;
+    text-align: start;
+    border-radius: 8px;
+    border: 2px solid #3eb7ca;
+}
+
+/* Title */
+h1 {
+    color: #fff;
+    background: #000;
+    padding: 15px 20px;
+    margin: 20px auto;
+    width: fit-content;
+    border-radius: 8px;
+}
+
+.score, .level {
+    width: 40%;
+    height: 15%;
+}
+
+.nextBlock {
+    width: 60%;
+    height: 40%;
+}
+
+p {
+    font-size: 16px;
+}
