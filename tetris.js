@@ -1,15 +1,42 @@
 /**
  * TETRIS GAME
  * Created by Sandesh Thapa
+ * 
+
+/**
+ * Sets audio volumes with quadratic scaling for better perceived volume control
+ * Music tracks get slightly lower volume to balance with sound effects
  */
+function setAudioVolumes() {
+    const actualMusicVolume = musicEnabled ? (musicVolume * musicVolume * 0.3) : 0;
+    const actualSoundVolume = soundEnabled ? 0.3 : 0;
+    
+    // Set menu music volume
+    AUDIO.menuMusic.volume = actualMusicVolume;
+    
+    // Set game music volumes
+    GAME_MUSIC_TRACKS.forEach(trackName => {
+        if (AUDIO[trackName]) {
+            AUDIO[trackName].volume = actualMusicVolume * 0.8;
+        }
+    });
+    
+    // Set sound effect volumes
+    Object.keys(AUDIO).forEach(key => {
+        if (!key.includes('Music') && !GAME_MUSIC_TRACKS.includes(key)) {
+            AUDIO[key].volume = actualSoundVolume;
+        }
+    });
+}
 
 // ================================================================================================
-// CANVAS & CONSTANTS
+// CANVAS & GAME CONSTANTS
 // ================================================================================================
 
 const canvas = document.getElementById('tetris');
 const ctx = canvas.getContext('2d');
 
+// Game state management
 const GAME_STATES = {
     MENU: 'menu',
     OPTIONS: 'options',
@@ -19,22 +46,27 @@ const GAME_STATES = {
     GAME_OVER: 'gameOver'
 };
 
-const BOARD_WIDTH = 10;
-const BOARD_HEIGHT = 20;
-const LINES_PER_LEVEL = 10;
-const BASE_DROP_INTERVAL = 1000;
+// Core game dimensions and timing
+const BOARD_WIDTH = 10;           // Standard Tetris board width
+const BOARD_HEIGHT = 20;          // Standard Tetris board height
+const LINES_PER_LEVEL = 10;       // Lines needed to advance level
+const BASE_DROP_INTERVAL = 1000;  // Starting drop speed in milliseconds
 
 // ================================================================================================
 // AUDIO SYSTEM
 // ================================================================================================
 
+// Audio file declarations - all game sounds and music
 const AUDIO = {
+    // Background music
     menuMusic: new Audio('assets/menu-music.mp3'),
     gameMusic1: new Audio('assets/bgm1.mp3'),
     gameMusic2: new Audio('assets/bgm2.mp3'),
     gameMusic3: new Audio('assets/bgm3.mp3'),
     gameMusic4: new Audio('assets/bgm4.mp3'),
     gameMusic5: new Audio('assets/bgm5.mp3'),
+    
+    // Sound effects
     move: new Audio('assets/move.wav'),
     rotate: new Audio('assets/rotate.wav'),
     drop: new Audio('assets/drop.wav'),
@@ -47,17 +79,18 @@ const AUDIO = {
     menuMove: new Audio('assets/menu-move.wav')
 };
 
+// Random music system configuration
 const GAME_MUSIC_TRACKS = ['gameMusic1', 'gameMusic2', 'gameMusic3', 'gameMusic4', 'gameMusic5'];
-let currentGameTrack = null;
-let lastPlayedTrack = null;
+let currentGameTrack = null;     // Currently playing game music track
+let lastPlayedTrack = null;      // Last played track (to avoid repeats)
 
-// Audio settings
-let musicEnabled = true;
-let soundEnabled = true;
-let musicVolume = 0.3;
-let audioInitialized = false;
+// Audio settings and state
+let musicEnabled = true;         // Master music toggle
+let soundEnabled = true;         // Master sound effects toggle
+let musicVolume = 0.3;          // Music volume (0.0 to 1.0)
+let audioInitialized = false;   // Browser audio permission flag
 
-AUDIO.menuMusic.loop = true;
+AUDIO.menuMusic.loop = true;     // Menu music loops continuously
 
 function setAudioVolumes() {
     const actualMusicVolume = musicEnabled ? (musicVolume * musicVolume * 0.3) : 0;
@@ -77,6 +110,10 @@ function setAudioVolumes() {
     });
 }
 
+/**
+ * Plays a sound effect if sound is enabled
+ * Resets currentTime to allow overlapping sounds
+ */
 function playSound(soundName) {
     if (soundEnabled && AUDIO[soundName]) {
         AUDIO[soundName].currentTime = 0;
@@ -84,6 +121,10 @@ function playSound(soundName) {
     }
 }
 
+/**
+ * Main music playback controller
+ * Handles menu music and triggers random game music
+ */
 function playMusic(musicName) {
     if (!musicEnabled) return;
     
@@ -95,16 +136,23 @@ function playMusic(musicName) {
     }
 }
 
+/**
+ * Random game music system - prevents repeating the same track twice
+ * Automatically chains to next random track when current song ends
+ * Includes error handling for failed audio loads
+ */
 function playRandomGameMusic() {
     if (!musicEnabled) return;
     
     stopAllMusic();
     
+    // Avoid repeating the same track consecutively
     let availableTracks = [...GAME_MUSIC_TRACKS];
     if (availableTracks.length > 1 && lastPlayedTrack) {
         availableTracks = availableTracks.filter(track => track !== lastPlayedTrack);
     }
     
+    // Select and play random track
     const randomIndex = Math.floor(Math.random() * availableTracks.length);
     const trackName = availableTracks[randomIndex];
     lastPlayedTrack = trackName;
@@ -115,8 +163,10 @@ function playRandomGameMusic() {
         const actualMusicVolume = musicEnabled ? (musicVolume * musicVolume * 0.3) : 0;
         currentGameTrack.volume = actualMusicVolume * 0.8;
         
+        // Set up auto-play next track when current ends
         currentGameTrack.onended = () => playRandomGameMusic();
         currentGameTrack.onerror = () => {
+            // If track fails to load, try again with a delay
             setTimeout(() => {
                 lastPlayedTrack = null;
                 playRandomGameMusic();
@@ -127,6 +177,9 @@ function playRandomGameMusic() {
     }
 }
 
+/**
+ * Stops all music tracks and resets their state
+ */
 function stopAllMusic() {
     AUDIO.menuMusic.pause();
     AUDIO.menuMusic.currentTime = 0;
@@ -142,6 +195,9 @@ function stopAllMusic() {
     currentGameTrack = null;
 }
 
+/**
+ * Emergency stop for all audio - used when switching game states
+ */
 function stopAllAudio() {
     Object.values(AUDIO).forEach(audio => {
         audio.pause();
@@ -151,6 +207,10 @@ function stopAllAudio() {
     currentGameTrack = null;
 }
 
+/**
+ * Updates audio settings and resumes appropriate music for current game state
+ * Called when audio settings are changed in options menu
+ */
 function updateAudioSettings() {
     setAudioVolumes();
     
@@ -169,6 +229,10 @@ function updateAudioSettings() {
     }
 }
 
+/**
+ * Initializes audio system after first user interaction
+ * Required due to browser autoplay policies
+ */
 function initializeAudio() {
     if (audioInitialized) return;
     audioInitialized = true;
@@ -183,24 +247,30 @@ function initializeAudio() {
 // GAME STATE & VARIABLES
 // ================================================================================================
 
-let currentState = GAME_STATES.MENU;
-let selectedMenuItem = 0;
-let selectedOptionItem = 0;
-let controlScheme = 'arrow';
+let currentState = GAME_STATES.MENU;  // Current game state
+let selectedMenuItem = 0;              // Currently selected menu item
+let selectedOptionItem = 0;            // Currently selected option item
+let controlScheme = 'arrow';           // Control scheme: 'arrow' or 'wasd'
 
+// Menu configuration
 const menuItems = ['Start', 'Options', 'About'];
 const optionItems = ['Controls', 'Music', 'Sounds', 'Volume', 'Back'];
 
-let gameBoard = [];
-let currentPiece = null;
-let nextPiece = null;
-let dropTime = 0;
-let dropInterval = 1000;
-let score = 0;
-let lines = 0;
-let level = 1;
+// Core game state variables
+let gameBoard = [];          // 2D array representing the game board
+let currentPiece = null;     // Currently falling piece
+let nextPiece = null;        // Next piece to spawn
+let dropTime = 0;           // Last time piece dropped automatically
+let dropInterval = 1000;    // Current drop interval (decreases with level)
+let score = 0;              // Current score
+let lines = 0;              // Total lines cleared
+let level = 1;              // Current level
 
-let keysPressed = new Set();
+// Classic Tetris DAS (Delayed Auto Shift) system
+let keysPressed = new Set();    // Currently pressed keys
+let keyTimers = new Map();      // Timers for key auto-repeat
+const DAS_DELAY = 250;          // Initial delay before auto-repeat (ms)
+const DAS_SPEED = 50;           // Auto-repeat interval (ms)
 
 const SCORING = {
     SINGLE: 100,
@@ -211,7 +281,6 @@ const SCORING = {
     HARD_DROP: 2
 };
 
-// Tetris piece definitions
 const BLOCKS = {
     I: { shape: [[1,1,1,1]], color: '#00f0f0' },
     O: { shape: [[1,1],[1,1]], color: '#f0f000' },
@@ -226,6 +295,9 @@ const BLOCKS = {
 // UTILITY FUNCTIONS
 // ================================================================================================
 
+/**
+ * Calculates block size based on canvas dimensions
+ */
 function calculateBlockSize() {
     return {
         width: canvas.width / BOARD_WIDTH,
@@ -233,6 +305,9 @@ function calculateBlockSize() {
     };
 }
 
+/**
+ * Gets rendering offsets and block dimensions for the game board
+ */
 function getBoardOffsets() {
     const blockSizes = calculateBlockSize();
     return {
@@ -243,30 +318,43 @@ function getBoardOffsets() {
     };
 }
 
+/**
+ * Updates the UI elements with current game statistics
+ */
 function updateUI() {
     document.querySelector('.score-value').textContent = score;
     document.querySelector('.lines-value').textContent = lines;
     document.querySelector('.level-value').textContent = level;
 }
 
+/**
+ * Adds points to score with level multiplier
+ */
 function addScore(points) {
     score += points * level;
     updateUI();
 }
 
+/**
+ * Adds cleared lines and handles level progression
+ * Increases game speed with each level
+ */
 function addLines(linesCleared) {
     lines += linesCleared;
     
     const newLevel = Math.floor(lines / LINES_PER_LEVEL) + 1;
     if (newLevel > level) {
         level = newLevel;
-        dropInterval = Math.max(50, BASE_DROP_INTERVAL - (level - 1) * 50);
+        dropInterval = Math.max(50, BASE_DROP_INTERVAL - (level - 1) * 50); // Speed increases
         playSound('levelUp');
     }
     
     updateUI();
 }
 
+/**
+ * Resets all game statistics to starting values
+ */
 function resetGame() {
     score = 0;
     lines = 0;
@@ -275,20 +363,27 @@ function resetGame() {
     updateUI();
 }
 
+/**
+ * Draws the next piece in the preview canvas
+ * Centers the piece within the small preview area
+ */
 function drawNextPiece() {
     if (!nextPiece) return;
     
     const nextCanvas = document.getElementById('nextBlockCanvas');
     const nextCtx = nextCanvas.getContext('2d');
     
+    // Clear the preview canvas
     nextCtx.fillStyle = '#000';
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     
     const blockSize = 15;
     const shape = nextPiece.shape;
+    // Center the piece in the preview canvas
     const offsetX = (nextCanvas.width - shape[0].length * blockSize) / 2;
     const offsetY = (nextCanvas.height - shape.length * blockSize) / 2;
     
+    // Draw the next piece
     nextCtx.fillStyle = nextPiece.color;
     for (let y = 0; y < shape.length; y++) {
         for (let x = 0; x < shape[y].length; x++) {
@@ -308,25 +403,32 @@ function drawNextPiece() {
 // MENU SYSTEM
 // ================================================================================================
 
+/**
+ * Draws the main menu screen with navigation instructions
+ */
 function drawMenu() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Game title
     ctx.font = '22px "Press Start 2P"';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#3eb7ca';
     ctx.fillText('TETRIS', canvas.width / 2, 100);
     
+    // Menu items with selection highlighting
     for (let i = 0; i < menuItems.length; i++) {
         ctx.fillStyle = selectedMenuItem === i ? '#fff' : '#666';
         ctx.fillText(menuItems[i], canvas.width / 2, 200 + i * 50);
     }
     
+    // Navigation instructions
     ctx.fillStyle = '#3eb7ca';
     ctx.font = '12px "Press Start 2P"';
     ctx.fillText('Use ↑/↓ or W/S to navigate', canvas.width / 2, 400);
     ctx.fillText('Press ENTER or SPACE to select', canvas.width / 2, 430);
     
+    // Audio initialization prompt (shows until first interaction)
     if (!audioInitialized) {
         ctx.fillStyle = '#f0a000';
         ctx.font = '10px "Press Start 2P"';
@@ -334,19 +436,25 @@ function drawMenu() {
     }
 }
 
+/**
+ * Draws the options/controls menu with current settings
+ */
 function drawControls() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Options title
     ctx.font = '22px "Press Start 2P"';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#3eb7ca';
     ctx.fillText('OPTIONS', canvas.width / 2, 100);
     
+    // Option items with current values
     for (let i = 0; i < optionItems.length; i++) {
         ctx.fillStyle = selectedOptionItem === i ? '#fff' : '#666';
         let text = optionItems[i];
         
+        // Append current setting values
         if (i === 0) text += ': ' + (controlScheme === 'arrow' ? 'ARROWS' : 'WASD');
         if (i === 1) text += ': ' + (musicEnabled ? 'ON' : 'OFF');
         if (i === 2) text += ': ' + (soundEnabled ? 'ON' : 'OFF');
@@ -355,6 +463,7 @@ function drawControls() {
         ctx.fillText(text, canvas.width / 2, 180 + i * 40);
     }
     
+    // Control scheme help text
     ctx.fillStyle = '#3eb7ca';
     ctx.font = '10px "Press Start 2P"';
     const controlText = controlScheme === 'arrow'
@@ -366,6 +475,9 @@ function drawControls() {
     ctx.fillText('Use ← → to adjust volume', canvas.width / 2, 480);
 }
 
+/**
+ * Draws the about screen with game information
+ */
 function drawAbout() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -389,12 +501,17 @@ function drawAbout() {
     ctx.fillText('Press ESC or ENTER to go back', canvas.width / 2, 400);
 }
 
+/**
+ * Draws the pause screen overlay on top of the game
+ */
 function drawPauseScreen() {
-    drawGame();
+    drawGame(); // Draw game state underneath
     
+    // Semi-transparent overlay
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Pause text and instructions
     ctx.fillStyle = '#fff';
     ctx.font = '24px "Press Start 2P"';
     ctx.textAlign = 'center';
@@ -405,12 +522,17 @@ function drawPauseScreen() {
     ctx.fillText('Press ESC for menu', canvas.width / 2, canvas.height / 2 + 70);
 }
 
+/**
+ * Draws the game over screen overlay
+ */
 function drawGameOver() {
-    drawGame();
+    drawGame(); // Show final game state underneath
     
+    // Semi-transparent overlay
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Game over text and options
     ctx.fillStyle = '#f00';
     ctx.font = '24px "Press Start 2P"';
     ctx.textAlign = 'center';
@@ -426,6 +548,10 @@ function drawGameOver() {
 // INPUT HANDLING
 // ================================================================================================
 
+/**
+ * Main keyboard input handler with DAS (Delayed Auto Shift) system
+ * Differentiates between movement keys (repeatable) and action keys (single press)
+ */
 document.addEventListener('keydown', function(event) {
     const key = event.key;
     
@@ -433,22 +559,66 @@ document.addEventListener('keydown', function(event) {
         initializeAudio();
     }
     
-    if (keysPressed.has(key)) return;
-    keysPressed.add(key);
+    // Handle repeating keys (movement) vs non-repeating keys (rotation, etc.)
+    const isMovementKey = isMovementInput(key);
     
+    if (!isMovementKey && keysPressed.has(key)) return;
+    if (!keysPressed.has(key)) {
+        keysPressed.add(key);
+        handleInput(key, true);
+        
+        if (isMovementKey) {
+            // Set up auto-repeat for movement keys
+            keyTimers.set(key, setTimeout(() => {
+                startAutoRepeat(key);
+            }, DAS_DELAY));
+        }
+    }
+});
+
+/**
+ * Key release handler - stops auto-repeat timers
+ */
+document.addEventListener('keyup', function(event) {
+    const key = event.key;
+    keysPressed.delete(key);
+    
+    // Clear any auto-repeat timers for this key
+    if (keyTimers.has(key)) {
+        clearTimeout(keyTimers.get(key));
+        keyTimers.delete(key);
+    }
+});
+
+/**
+ * Determines if a key should have auto-repeat behavior
+ * Movement keys repeat, action keys (rotation, hard drop) don't
+ */
+function isMovementInput(key) {
+    const movementKeys = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'a', 'A', 'd', 'D', 's', 'S'];
+    return movementKeys.includes(key);
+}
+
+/**
+ * Handles auto-repeat for movement keys after initial DAS delay
+ */
+function startAutoRepeat(key) {
+    if (keysPressed.has(key)) {
+        handleInput(key, false); // Subsequent presses (not first)
+        keyTimers.set(key, setTimeout(() => startAutoRepeat(key), DAS_SPEED));
+    }
+}
+
+function handleInput(key, isFirstPress) {
     switch (currentState) {
         case GAME_STATES.MENU: handleMenuInput(key); break;
         case GAME_STATES.OPTIONS: handleOptionsInput(key); break;
         case GAME_STATES.ABOUT: handleAboutInput(key); break;
-        case GAME_STATES.PLAYING: handleGameInput(key); break;
+        case GAME_STATES.PLAYING: handleGameInput(key, isFirstPress); break;
         case GAME_STATES.PAUSED: handlePauseInput(key); break;
         case GAME_STATES.GAME_OVER: handleGameOverInput(key); break;
     }
-});
-
-document.addEventListener('keyup', function(event) {
-    keysPressed.delete(event.key);
-});
+}
 
 function handleMenuInput(key) {
     if (key === 'ArrowUp' || key === 'w' || key === 'W') {
@@ -504,40 +674,45 @@ function handleOptionsInput(key) {
 
 function handleAboutInput(key) {
     if (key === 'Escape' || key === 'Enter') {
+        playSound('menuSelect');
         currentState = GAME_STATES.MENU;
         selectedMenuItem = 0;
     }
 }
 
-function handleGameInput(key) {
+function handleGameInput(key, isFirstPress) {
     if (key === 'Escape') {
+        playSound('menuSelect');
         stopAllAudio();
         playMusic('menuMusic');
         currentState = GAME_STATES.MENU;
         selectedMenuItem = 0;
     } else if (key === 'p' || key === 'P') {
+        playSound('menuSelect');
         currentState = GAME_STATES.PAUSED;
     } else if (controlScheme === 'arrow') {
-        if (key === 'ArrowLeft') { movePiece(-1, 0); playSound('move'); }
-        else if (key === 'ArrowRight') { movePiece(1, 0); playSound('move'); }
-        else if (key === 'ArrowDown') { movePiece(0, 1); playSound('drop'); }
-        else if (key === 'ArrowUp') { rotatePiece(); playSound('rotate'); }
-        else if (key === 'c' || key === 'C') { reverseRotate(); playSound('rotate'); }
-        else if (key === ' ') { hardDrop(); playSound('lock'); }
+        if (key === 'ArrowLeft') { movePiece(-1, 0, false); playSound('move'); }
+        else if (key === 'ArrowRight') { movePiece(1, 0, false); playSound('move'); }
+        else if (key === 'ArrowDown') { movePiece(0, 1, true); playSound('drop'); } // Manual soft drop
+        else if ((key === 'ArrowUp') && isFirstPress) { rotatePiece(); playSound('rotate'); }
+        else if ((key === 'c' || key === 'C') && isFirstPress) { reverseRotate(); playSound('rotate'); }
+        else if ((key === ' ') && isFirstPress) { hardDrop(); playSound('lock'); }
     } else {
-        if (key === 'a' || key === 'A') { movePiece(-1, 0); playSound('move'); }
-        else if (key === 'd' || key === 'D') { movePiece(1, 0); playSound('move'); }
-        else if (key === 's' || key === 'S') { movePiece(0, 1); playSound('drop'); }
-        else if (key === 'w' || key === 'W') { rotatePiece(); playSound('rotate'); }
-        else if (key === 'c' || key === 'C') { reverseRotate(); playSound('rotate'); }
-        else if (key === ' ') { hardDrop(); playSound('lock'); }
+        if (key === 'a' || key === 'A') { movePiece(-1, 0, false); playSound('move'); }
+        else if (key === 'd' || key === 'D') { movePiece(1, 0, false); playSound('move'); }
+        else if (key === 's' || key === 'S') { movePiece(0, 1, true); playSound('drop'); } // Manual soft drop
+        else if ((key === 'w' || key === 'W') && isFirstPress) { rotatePiece(); playSound('rotate'); }
+        else if ((key === 'c' || key === 'C') && isFirstPress) { reverseRotate(); playSound('rotate'); }
+        else if ((key === ' ') && isFirstPress) { hardDrop(); playSound('lock'); }
     }
 }
 
 function handlePauseInput(key) {
     if (key === 'p' || key === 'P') {
+        playSound('menuSelect');
         currentState = GAME_STATES.PLAYING;
     } else if (key === 'Escape') {
+        playSound('menuSelect');
         stopAllAudio();
         playMusic('menuMusic');
         currentState = GAME_STATES.MENU;
@@ -561,6 +736,9 @@ function handleGameOverInput(key) {
 // GAME LOGIC
 // ================================================================================================
 
+/**
+ * Initializes empty game board with zeros
+ */
 function initializeBoard() {
     gameBoard = [];
     for (let y = 0; y < BOARD_HEIGHT; y++) {
@@ -568,9 +746,15 @@ function initializeBoard() {
     }
 }
 
+/**
+ * Spawns a new piece at the top of the board
+ * Uses the next piece if available, otherwise generates random piece
+ * Checks for game over condition (piece can't spawn)
+ */
 function spawnPiece() {
     const pieces = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
     
+    // Use next piece if available
     if (nextPiece) {
         currentPiece = {
             shape: nextPiece.shape,
@@ -580,6 +764,7 @@ function spawnPiece() {
             type: nextPiece.type
         };
     } else {
+        // Generate random piece for first spawn
         const randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
         currentPiece = {
             shape: BLOCKS[randomPiece].shape,
@@ -590,6 +775,7 @@ function spawnPiece() {
         };
     }
     
+    // Generate next piece for preview
     const nextRandomPiece = pieces[Math.floor(Math.random() * pieces.length)];
     nextPiece = {
         shape: BLOCKS[nextRandomPiece].shape,
@@ -599,6 +785,7 @@ function spawnPiece() {
     
     drawNextPiece();
     
+    // Check if new piece can spawn (game over condition)
     if (checkCollision(currentPiece.x, currentPiece.y, currentPiece.shape)) {
         stopAllAudio();
         playSound('gameOver');
@@ -606,17 +793,24 @@ function spawnPiece() {
     }
 }
 
-function movePiece(dx, dy) {
+/**
+ * Moves a piece in the specified direction
+ * Handles collision detection and piece locking
+ * Classic scoring: only manual drops give points
+ */
+function movePiece(dx, dy, isManualDrop = false) {
     if (!currentPiece) return;
     
     const newX = currentPiece.x + dx;
     const newY = currentPiece.y + dy;
     
+    // Try to move piece
     if (!checkCollision(newX, newY, currentPiece.shape)) {
         currentPiece.x = newX;
         currentPiece.y = newY;
         
-        if (dy > 0) {
+        // Classic Tetris scoring: only manual soft drops give points, not gravity
+        if (dy > 0 && isManualDrop) {
             addScore(SCORING.SOFT_DROP);
         }
     } else if (dy > 0) {
@@ -769,12 +963,17 @@ function rotateMatrixCCW(matrix) {
 // RENDERING
 // ================================================================================================
 
+/**
+ * Draws the main game board with locked pieces
+ */
 function drawBoard() {
     const { x: offsetX, y: offsetY, blockWidth, blockHeight } = getBoardOffsets();
     
+    // Draw board background
     ctx.fillStyle = '#111';
     ctx.fillRect(offsetX, offsetY, BOARD_WIDTH * blockWidth, BOARD_HEIGHT * blockHeight);
     
+    // Draw all locked pieces on the board
     for (let y = 0; y < BOARD_HEIGHT; y++) {
         for (let x = 0; x < BOARD_WIDTH; x++) {
             if (gameBoard[y][x]) {
@@ -786,6 +985,9 @@ function drawBoard() {
     }
 }
 
+/**
+ * Draws the currently falling piece
+ */
 function drawCurrentPiece() {
     if (!currentPiece) return;
     
@@ -803,6 +1005,9 @@ function drawCurrentPiece() {
     }
 }
 
+/**
+ * Main game rendering function - draws board and current piece
+ */
 function drawGame() {
     ctx.fillStyle = '#222';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -815,15 +1020,20 @@ function drawGame() {
 // MAIN GAME LOOP
 // ================================================================================================
 
+/**
+ * Main game loop - handles automatic piece dropping and renders current game state
+ * Uses requestAnimationFrame for smooth 60fps rendering
+ */
 function gameLoop() {
     if (currentState === GAME_STATES.PLAYING) {
         const now = Date.now();
         if (now - dropTime > dropInterval) {
-            movePiece(0, 1);
+            movePiece(0, 1, false); // Automatic gravity drop (no points)
             dropTime = now;
         }
     }
     
+    // Render appropriate screen based on current game state
     switch (currentState) {
         case GAME_STATES.MENU: drawMenu(); break;
         case GAME_STATES.OPTIONS: drawControls(); break;
@@ -833,23 +1043,30 @@ function gameLoop() {
         case GAME_STATES.GAME_OVER: drawGameOver(); break;
     }
     
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(gameLoop); // Continue the loop
 }
 
+/**
+ * Initializes a new game session
+ * Includes delay to allow menu-select sound to play before stopping audio
+ */
 function startGame() {
-    stopAllAudio();
+    setTimeout(() => {
+        stopAllAudio();
+        playMusic('gameMusic');
+    }, 100); // Delay allows menu-select sound to play
+    
     currentState = GAME_STATES.PLAYING;
     initializeBoard();
     resetGame();
     nextPiece = null;
     spawnPiece();
-    playMusic('gameMusic');
     dropTime = Date.now();
 }
 
 // ================================================================================================
-// INITIALIZE
+// GAME INITIALIZATION
 // ================================================================================================
 
-setAudioVolumes();
-gameLoop();
+setAudioVolumes();  // Initialize audio settings
+gameLoop();         // Start the main game loop
