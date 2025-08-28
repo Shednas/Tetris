@@ -55,6 +55,7 @@ let lastPlayedTrack = null;
 let musicEnabled = true;
 let soundEnabled = true;
 let musicVolume = 0.3;
+let audioInitialized = false;
 
 AUDIO.menuMusic.loop = true;
 
@@ -165,6 +166,16 @@ function updateAudioSettings() {
         } else if (!musicEnabled && currentGameTrack && !currentGameTrack.paused) {
             stopAllMusic();
         }
+    }
+}
+
+function initializeAudio() {
+    if (audioInitialized) return;
+    audioInitialized = true;
+    setAudioVolumes();
+    
+    if (currentState === GAME_STATES.MENU) {
+        playMusic('menuMusic');
     }
 }
 
@@ -315,6 +326,12 @@ function drawMenu() {
     ctx.font = '12px "Press Start 2P"';
     ctx.fillText('Use ↑/↓ or W/S to navigate', canvas.width / 2, 400);
     ctx.fillText('Press ENTER or SPACE to select', canvas.width / 2, 430);
+    
+    if (!audioInitialized) {
+        ctx.fillStyle = '#f0a000';
+        ctx.font = '10px "Press Start 2P"';
+        ctx.fillText('Press any key to enable audio', canvas.width / 2, 470);
+    }
 }
 
 function drawControls() {
@@ -411,6 +428,10 @@ function drawGameOver() {
 
 document.addEventListener('keydown', function(event) {
     const key = event.key;
+    
+    if (!audioInitialized) {
+        initializeAudio();
+    }
     
     if (keysPressed.has(key)) return;
     keysPressed.add(key);
@@ -831,5 +852,4 @@ function startGame() {
 // ================================================================================================
 
 setAudioVolumes();
-playMusic('menuMusic');
 gameLoop();
