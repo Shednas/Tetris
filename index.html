@@ -13,26 +13,33 @@
         <div class="game">
             <canvas id="tetris" width="440" height="600"></canvas>
         </div>
-    
+
         <!-- UI -->
         <div class="UI">
             <h1>Tetris</h1>
 
-            <div class="score">
-                <p>Score: </p>
-                <p class="score-value">0</p>
+            <div class="stats">
+                <div class="score">
+                    <p>Score: </p>
+                    <p class="score-value value">0</p>
+                </div>
+                <div class="lines">
+                    <p>Lines: </p>
+                    <p class="lines-value value">0</p>
+                </div>
             </div>
 
             <div class="nextBlock">
-                <p>Next Block: </p>
-                <p class="next-block-code">1</p>
+                <p>Next Block:</p>
+                <div class="next-block-preview">
+                    <canvas id="nextBlockCanvas" width="80" height="80"></canvas>
+                </div>
             </div>
 
             <div class="level">
                 <p>Level: </p>
-                <p class="level-value">1</p>
+                <p class="level-value value">1</p>
             </div>
-
         </div>
     </main>
     
